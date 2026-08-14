@@ -7,8 +7,9 @@
 
 enum class MessageType : uint8_t {
     TEXT = 1,
-    FILE = 2,
-    ACK = 3
+    FILE_REQUEST = 2,
+    FILE_DATA = 3,
+    ACK = 4
 };
 
 bool sendAll(SOCKET socket, const char* data, int length);
