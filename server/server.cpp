@@ -1,12 +1,18 @@
 #include <iostream>
 #include <string>
+#include <vector>
 #include <winsock2.h>
+#include "../protocol.h"
 
 #pragma comment(lib, "ws2_32.lib")
 
 int main() {
     WSADATA wsa;
-    WSAStartup(MAKEWORD(2, 2), &wsa);
+
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+        std::cerr << "WSAStartup failed\n";
+        return 1;
+    }
 
     SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -41,7 +47,11 @@ int main() {
 
     std::cout << "Server listening on port 8080...\n";
 
-    SOCKET clientSocket = accept(serverSocket, nullptr, nullptr);
+    SOCKET clientSocket = accept(
+        serverSocket,
+        nullptr,
+        nullptr
+    );
 
     if (clientSocket == INVALID_SOCKET) {
         std::cerr << "Accept failed\n";
@@ -52,33 +62,45 @@ int main() {
 
     std::cout << "Client connected!\n";
 
-    char buffer[1024];
+    MessageType type;
+    std::vector<char> payload;
 
-    int bytesReceived = recv(
+    if (receiveMessage(
         clientSocket,
-        buffer,
-        sizeof(buffer) - 1,
-        0
+        type,
+        payload
+    )) {
+        if (type == MessageType::TEXT) {
+            std::string message(
+                payload.begin(),
+                payload.end()
+            );
+
+            std::cout << "Client says: "
+                      << message << '\n';
+        }
+    } else {
+        std::cerr << "Failed to receive message\n";
+    }
+
+    std::string response = "Hello from server!";
+
+    std::vector<char> responsePayload(
+        response.begin(),
+        response.end()
     );
 
-    if (bytesReceived > 0) {
-        buffer[bytesReceived] = '\0';
-
-        std::cout << "Client says: "
-                  << buffer << '\n';
-
-        std::string response = "Hello from server!";
-
-        send(
-            clientSocket,
-            response.c_str(),
-            static_cast<int>(response.size()),
-            0
-        );
+    if (!sendMessage(
+        clientSocket,
+        MessageType::TEXT,
+        responsePayload
+    )) {
+        std::cerr << "Failed to send response\n";
     }
 
     closesocket(clientSocket);
     closesocket(serverSocket);
+
     WSACleanup();
 
     return 0;
